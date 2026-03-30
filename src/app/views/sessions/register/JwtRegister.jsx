@@ -58,7 +58,7 @@ export default function JwtRegister() {
       title="Create your account"
       subtitle="Let users sign themselves up, then complete the rest of their profile after sign-in."
       image="/assets/images/icon.svg"
-      imageAlt="Project Management"
+      imageAlt="MTA CheckSheet"
       footer={
         <Paragraph color="text.secondary">
           Already have an account?

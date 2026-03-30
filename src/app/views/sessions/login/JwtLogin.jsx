@@ -14,8 +14,8 @@ import { Paragraph } from "app/components/Typography";
 import AuthLayout from "../components/AuthLayout";
 
 const initialValues = {
-  username: "",
-  password: "",
+  username: "admin",
+  password: "Admin1234",
   remember: true
 };
 
@@ -56,7 +56,7 @@ export default function JwtLogin() {
       title="Welcome back"
       subtitle="Sign in to manage projects, approvals, tasks, and your account."
       image="/assets/images/icon.svg"
-      imageAlt="Project Management"
+      imageAlt="MTA CheckSheet"
       footer={
         <Paragraph color="text.secondary">
           Don&apos;t have an account?

@@ -27,7 +27,7 @@ export default function ForgotPassword() {
 
     setSuccessMessage(
       response?.message ||
-        "If an account exists for that email, password reset instructions have been sent."
+      "If an account exists for that email, password reset instructions have been sent."
     );
     resetForm();
   };
@@ -37,7 +37,7 @@ export default function ForgotPassword() {
       title="Forgot your password?"
       subtitle="Enter your email address and we will start the password recovery flow."
       image="/assets/images/icon.svg"
-      imageAlt="Project Management"
+      imageAlt="MTA CheckSheet"
     >
       <Formik
         initialValues={initialValues}

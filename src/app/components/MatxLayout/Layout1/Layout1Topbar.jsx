@@ -16,7 +16,7 @@ import useAuth from "app/hooks/useAuth";
 import useSettings from "app/hooks/useSettings";
 
 import { Span } from "app/components/Typography";
-import { MatxMenu, MatxSearchBox, NotificationBar } from "app/components";
+import { MatxMenu } from "app/components";
 import { themeShadows } from "app/components/MatxTheme/themeColors";
 import { topBarHeight } from "app/utils/constant";
 
@@ -96,13 +96,10 @@ const Layout1Topbar = () => {
           <StyledIconButton onClick={handleSidebarToggle}>
             <Menu />
           </StyledIconButton>
-          <Box sx={{ ml: 1.5 }}>
-            <MatxSearchBox />
-          </Box>
         </Box>
 
         <Box display="flex" alignItems="center">
-          <NotificationBar />
+
 
           <MatxMenu
             menuButton={

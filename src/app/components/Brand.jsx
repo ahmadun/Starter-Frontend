@@ -33,7 +33,7 @@ export default function Brand({ children }) {
       <Box display="flex" alignItems="center">
         <Avatar src={brandIcon} />
         <StyledSpan mode={mode} className="sidenavHoverShow">
-          Project Management
+          MTA CheckSheet System
         </StyledSpan>
       </Box>
 

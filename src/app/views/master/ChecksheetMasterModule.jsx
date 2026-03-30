@@ -1,0 +1,1191 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  FormGroup,
+  IconButton,
+  MenuItem,
+  Paper,
+  Stack,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TextField,
+  Typography
+} from "@mui/material";
+import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { ConfirmationDialog } from "app/components";
+import {
+  useChecksheetAreas,
+  useChecksheetGroups,
+  useChecksheetLines,
+  useChecksheetMachines,
+  useChecksheetMasters,
+  useChecksheetTemplates,
+  useCreateChecksheetArea,
+  useCreateChecksheetGroup,
+  useCreateChecksheetLine,
+  useCreateChecksheetMachine,
+  useCreateChecksheetMaster,
+  useDeleteChecksheetArea,
+  useDeleteChecksheetGroup,
+  useDeleteChecksheetLine,
+  useDeleteChecksheetMachine,
+  useDeleteChecksheetMaster,
+  useUpdateChecksheetArea,
+  useUpdateChecksheetGroup,
+  useUpdateChecksheetLine,
+  useUpdateChecksheetMachine,
+  useUpdateChecksheetMaster,
+  useUpsertChecksheetMachineModeTemplate
+} from "app/hooks/useChecksheets";
+
+const MODE_OPTIONS = ["daily", "regular"];
+
+function PageShell({ title, description, action, children }) {
+  return (
+    <Box sx={{ p: 3 }}>
+      <Stack spacing={3}>
+        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography variant="h5" fontWeight={700}>{title}</Typography>
+            <Typography variant="body2" color="text.secondary">{description}</Typography>
+          </Box>
+          {action}
+        </Stack>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          {children}
+        </Paper>
+      </Stack>
+    </Box>
+  );
+}
+
+function AreaDialog({ open, mode, initialData, onClose, onSubmit, isPending }) {
+  const [form, setForm] = useState({
+    areaCode: initialData?.areaCode ?? "",
+    areaName: initialData?.areaName ?? "",
+    isActive: initialData?.isActive ?? true
+  });
+
+  useEffect(() => {
+    setForm({
+      areaCode: initialData?.areaCode ?? "",
+      areaName: initialData?.areaName ?? "",
+      isActive: initialData?.isActive ?? true
+    });
+  }, [initialData]);
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{mode === "edit" ? "Edit Area Master" : "Create Area Master"}</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <TextField label="Area Code" value={form.areaCode} onChange={(event) => setForm((current) => ({ ...current, areaCode: event.target.value }))} disabled={mode === "edit"} />
+          <TextField label="Area Name" value={form.areaName} onChange={(event) => setForm((current) => ({ ...current, areaName: event.target.value }))} />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Switch checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+            <Typography>{form.isActive ? "Active" : "Inactive"}</Typography>
+          </Stack>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isPending}>Cancel</Button>
+        <Button variant="contained" onClick={() => onSubmit(form)} disabled={isPending || !form.areaCode.trim() || !form.areaName.trim()}>
+          {isPending ? "Saving..." : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function LineDialog({ open, mode, initialData, areas, onClose, onSubmit, isPending }) {
+  const [form, setForm] = useState({
+    lineCode: initialData?.lineCode ?? "",
+    lineName: initialData?.lineName ?? "",
+    areaCode: initialData?.areaCode ?? "",
+    isActive: initialData?.isActive ?? true
+  });
+
+  useEffect(() => {
+    setForm({
+      lineCode: initialData?.lineCode ?? "",
+      lineName: initialData?.lineName ?? "",
+      areaCode: initialData?.areaCode ?? "",
+      isActive: initialData?.isActive ?? true
+    });
+  }, [initialData]);
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{mode === "edit" ? "Edit Line Master" : "Create Line Master"}</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <TextField label="Line Code" value={form.lineCode} onChange={(event) => setForm((current) => ({ ...current, lineCode: event.target.value }))} disabled={mode === "edit"} />
+          <TextField label="Line Name" value={form.lineName} onChange={(event) => setForm((current) => ({ ...current, lineName: event.target.value }))} />
+          <TextField select label="Location" value={form.areaCode} onChange={(event) => setForm((current) => ({ ...current, areaCode: event.target.value }))}>
+            {areas.map((area) => <MenuItem key={area.areaCode} value={area.areaCode}>{area.areaCode} - {area.areaName}</MenuItem>)}
+          </TextField>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Switch checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+            <Typography>{form.isActive ? "Active" : "Inactive"}</Typography>
+          </Stack>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isPending}>Cancel</Button>
+        <Button variant="contained" onClick={() => onSubmit(form)} disabled={isPending || !form.lineCode.trim() || !form.lineName.trim() || !form.areaCode}>
+          {isPending ? "Saving..." : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function GroupDialog({ open, mode, initialData, onClose, onSubmit, isPending }) {
+  const [form, setForm] = useState({
+    groupCode: initialData?.groupCode ?? "",
+    groupName: initialData?.groupName ?? "",
+    sortOrder: initialData?.sortOrder ?? 0,
+    isActive: initialData?.isActive ?? true
+  });
+
+  useEffect(() => {
+    setForm({
+      groupCode: initialData?.groupCode ?? "",
+      groupName: initialData?.groupName ?? "",
+      sortOrder: initialData?.sortOrder ?? 0,
+      isActive: initialData?.isActive ?? true
+    });
+  }, [initialData]);
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{mode === "edit" ? "Edit Group" : "Create Group"}</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <TextField label="Group Code" value={form.groupCode} onChange={(event) => setForm((current) => ({ ...current, groupCode: event.target.value }))} disabled={mode === "edit"} />
+          <TextField label="Group Name" value={form.groupName} onChange={(event) => setForm((current) => ({ ...current, groupName: event.target.value }))} />
+          <TextField label="Sort Order" type="number" value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: Number(event.target.value) }))} />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Switch checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+            <Typography>{form.isActive ? "Active" : "Inactive"}</Typography>
+          </Stack>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isPending}>Cancel</Button>
+        <Button variant="contained" onClick={() => onSubmit(form)} disabled={isPending || !form.groupCode.trim() || !form.groupName.trim()}>
+          {isPending ? "Saving..." : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ChecksheetMasterDialog({ open, mode, initialData, onClose, onSubmit, isPending }) {
+  const [form, setForm] = useState({
+    processCode: initialData?.processCode ?? "",
+    processName: initialData?.processName ?? "",
+    checksheetName: initialData?.checksheetName ?? "",
+    description: initialData?.description ?? "",
+    isActive: initialData?.isActive ?? true
+  });
+
+  useEffect(() => {
+    setForm({
+      processCode: initialData?.processCode ?? "",
+      processName: initialData?.processName ?? "",
+      checksheetName: initialData?.checksheetName ?? "",
+      description: initialData?.description ?? "",
+      isActive: initialData?.isActive ?? true
+    });
+  }, [initialData]);
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{mode === "edit" ? "Edit Checksheet Master" : "Create Checksheet Master"}</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <TextField
+            label="Process Code"
+            value={form.processCode}
+            onChange={(event) => setForm((current) => ({ ...current, processCode: event.target.value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4) }))}
+            helperText="Exactly 4 alphanumeric characters."
+          />
+          <TextField label="Process Name" value={form.processName} onChange={(event) => setForm((current) => ({ ...current, processName: event.target.value }))} />
+          <TextField label="Checksheet Name" value={form.checksheetName} onChange={(event) => setForm((current) => ({ ...current, checksheetName: event.target.value }))} />
+          <TextField label="Description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} multiline minRows={2} />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Switch checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+            <Typography>{form.isActive ? "Active" : "Inactive"}</Typography>
+          </Stack>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isPending}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={() => onSubmit(form)}
+          disabled={isPending || form.processCode.trim().length !== 4 || !form.processName.trim() || !form.checksheetName.trim()}
+        >
+          {isPending ? "Saving..." : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ChecksheetLineDialog({ open, mode, initialData, checksheetMasters, lines, groups, templates, onClose, onSubmit, isPending }) {
+  const [form, setForm] = useState({
+    machineCode: initialData?.machineCode ?? "",
+    checksheetMasterId: initialData?.checksheetMasterId ?? "",
+    lineCode: initialData?.lineCode ?? "",
+    groupCodes: initialData?.groupCodes ?? [],
+    modes: initialData?.modes ?? [],
+    dailyTemplateId: initialData?.modeTemplates?.find((item) => item.checksheetMode === "daily")?.templateId ?? "",
+    regularTemplateId: initialData?.modeTemplates?.find((item) => item.checksheetMode === "regular")?.templateId ?? "",
+    isActive: initialData?.isActive ?? true
+  });
+
+  useEffect(() => {
+    setForm({
+      machineCode: initialData?.machineCode ?? "",
+      checksheetMasterId: initialData?.checksheetMasterId ?? "",
+      lineCode: initialData?.lineCode ?? "",
+      groupCodes: initialData?.groupCodes ?? [],
+      modes: initialData?.modes ?? [],
+      dailyTemplateId: initialData?.modeTemplates?.find((item) => item.checksheetMode === "daily")?.templateId ?? "",
+      regularTemplateId: initialData?.modeTemplates?.find((item) => item.checksheetMode === "regular")?.templateId ?? "",
+      isActive: initialData?.isActive ?? true
+    });
+  }, [initialData]);
+
+  const selectedMaster = checksheetMasters.find((item) => item.id === form.checksheetMasterId);
+  const generatedMachineCode = mode === "edit"
+    ? form.machineCode
+    : `${form.lineCode || ""}${selectedMaster?.processCode || ""}${form.machineCode || ""}`;
+  const isModeTemplateValid = form.modes.every((mode) => {
+    if (mode === "daily") return !!form.dailyTemplateId;
+    if (mode === "regular") return !!form.regularTemplateId;
+    return false;
+  });
+  const toggleMode = (modeValue) => {
+    setForm((current) => ({
+      ...current,
+      modes: current.modes.includes(modeValue)
+        ? current.modes.filter((item) => item !== modeValue)
+        : [...current.modes, modeValue]
+    }));
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{mode === "edit" ? "Edit Checksheet Line" : "Create Checksheet Line"}</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <TextField select label="Checksheet Master" value={form.checksheetMasterId} onChange={(event) => setForm((current) => ({ ...current, checksheetMasterId: Number(event.target.value) }))}>
+            {checksheetMasters.map((item) => <MenuItem key={item.id} value={item.id}>{item.processCode} - {item.processName} - {item.checksheetName}</MenuItem>)}
+          </TextField>
+          <TextField select label="Line Master" value={form.lineCode} onChange={(event) => setForm((current) => ({ ...current, lineCode: event.target.value }))}>
+            {lines.map((line) => <MenuItem key={line.lineCode} value={line.lineCode}>{line.lineCode} - {line.lineName} ({line.location})</MenuItem>)}
+          </TextField>
+          <TextField
+            label={mode === "edit" ? "Machine Code" : "Machine Code Suffix"}
+            value={form.machineCode}
+            onChange={(event) => setForm((current) => ({ ...current, machineCode: event.target.value }))}
+            disabled={mode === "edit"}
+            helperText={mode === "edit"
+              ? "Stored machine code."
+              : "Stored machine code format: line code + process code + machine code suffix."}
+          />
+          <TextField
+            label="Generated Machine Code"
+            value={generatedMachineCode}
+            disabled
+            helperText={mode === "edit"
+              ? (selectedMaster ? `${selectedMaster.processName} - ${selectedMaster.checksheetName}` : "Stored machine code.")
+              : "Preview of the machine_code that will be stored in backend."}
+          />
+          <TextField
+            select
+            label="Groups"
+            value={form.groupCodes}
+            onChange={(event) => setForm((current) => ({ ...current, groupCodes: event.target.value }))}
+            SelectProps={{ multiple: true, renderValue: (selected) => selected.join(", ") }}
+          >
+            {groups.map((group) => <MenuItem key={group.groupCode} value={group.groupCode}>{group.groupCode} - {group.groupName}</MenuItem>)}
+          </TextField>
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Modes</Typography>
+            <FormGroup row sx={{ gap: 1 }}>
+              {MODE_OPTIONS.map((modeOption) => (
+                <FormControlLabel
+                  key={modeOption}
+                  control={
+                    <Checkbox
+                      checked={form.modes.includes(modeOption)}
+                      onChange={() => toggleMode(modeOption)}
+                    />
+                  }
+                  label={modeOption}
+                  sx={{
+                    m: 0,
+                    px: 1.25,
+                    py: 0.5,
+                    border: 1,
+                    borderColor: form.modes.includes(modeOption) ? "primary.main" : "divider",
+                    borderRadius: 2,
+                    bgcolor: form.modes.includes(modeOption) ? "primary.50" : "transparent"
+                  }}
+                />
+              ))}
+            </FormGroup>
+          </Box>
+          {form.modes.includes("daily") && (
+            <TextField select label="Daily Template" value={form.dailyTemplateId} onChange={(event) => setForm((current) => ({ ...current, dailyTemplateId: Number(event.target.value) }))}>
+              {templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.name}</MenuItem>)}
+            </TextField>
+          )}
+          {form.modes.includes("regular") && (
+            <TextField select label="Regular Template" value={form.regularTemplateId} onChange={(event) => setForm((current) => ({ ...current, regularTemplateId: Number(event.target.value) }))}>
+              {templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.name}</MenuItem>)}
+            </TextField>
+          )}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Switch checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+            <Typography>{form.isActive ? "Active" : "Inactive"}</Typography>
+          </Stack>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isPending}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={() => onSubmit(form)}
+          disabled={isPending || !form.machineCode.trim() || !form.checksheetMasterId || !form.lineCode || form.groupCodes.length === 0 || form.modes.length === 0 || !isModeTemplateValid}
+        >
+          {isPending ? "Saving..." : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+export function ChecksheetAreasPage() {
+  const [dialogState, setDialogState] = useState({ open: false, mode: "create", data: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { data: areas = [], isLoading, isError, error } = useChecksheetAreas();
+  const createArea = useCreateChecksheetArea();
+  const updateArea = useUpdateChecksheetArea(dialogState.data?.areaCode);
+  const deleteArea = useDeleteChecksheetArea();
+
+  const columns = useMemo(
+    () => [
+      { accessorKey: "areaCode", header: "Code" },
+      { accessorKey: "areaName", header: "Name" },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (row.original.isActive ? "Active" : "Inactive")
+      },
+      {
+        id: "action",
+        header: () => <Box sx={{ textAlign: "right", pr: 1.5 }}>Action</Box>,
+        cell: ({ row }) => (
+          <Box sx={{ textAlign: "right", display: "flex", justifyContent: "flex-end", gap: 1, pr: 1.5 }}>
+            <IconButton onClick={() => setDialogState({ open: true, mode: "edit", data: row.original })}><EditOutlinedIcon /></IconButton>
+            <IconButton color="error" onClick={() => setDeleteTarget({ id: row.original.areaCode, name: row.original.areaCode })}><DeleteOutlineIcon /></IconButton>
+          </Box>
+        )
+      }
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: areas,
+    columns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  if (isError) {
+    return <Box sx={{ p: 3 }}><Alert severity="error">{error.message}</Alert></Box>;
+  }
+
+  return (
+    <PageShell
+      title="Area Master"
+      description="Manage location master used by line master selection."
+      action={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState({ open: true, mode: "create", data: null })}>Add Area</Button>}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header, index) => {
+                  const isFirstColumn = index === 0;
+                  const isLastColumn = index === headerGroup.headers.length - 1;
+
+                  return (
+                    <TableCell
+                      key={header.id}
+                      align={isLastColumn ? "right" : "left"}
+                      sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>Loading areas...</TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} hover>
+                  {row.getVisibleCells().map((cell, index) => {
+                    const isFirstColumn = index === 0;
+                    const isLastColumn = index === row.getVisibleCells().length - 1;
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        align={isLastColumn ? "right" : "left"}
+                        sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>No areas found.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <AreaDialog
+        open={dialogState.open}
+        mode={dialogState.mode}
+        initialData={dialogState.data}
+        onClose={() => setDialogState({ open: false, mode: "create", data: null })}
+        isPending={createArea.isPending || updateArea.isPending}
+        onSubmit={(payload) => {
+          const action = dialogState.mode === "edit"
+            ? updateArea.mutateAsync({ areaName: payload.areaName, isActive: payload.isActive })
+            : createArea.mutateAsync(payload);
+          action.then(() => setDialogState({ open: false, mode: "create", data: null }));
+        }}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        title="Delete Area"
+        text={`Delete "${deleteTarget?.name}"?`}
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={deleteArea.isPending}
+        onConfirmDialogClose={() => setDeleteTarget(null)}
+        onYesClick={() => deleteArea.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })}
+      />
+    </PageShell>
+  );
+}
+
+export function ChecksheetLineMastersPage() {
+  const [dialogState, setDialogState] = useState({ open: false, mode: "create", data: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { data: lines = [], isLoading, isError, error } = useChecksheetLines();
+  const { data: areas = [] } = useChecksheetAreas();
+  const createLine = useCreateChecksheetLine();
+  const updateLine = useUpdateChecksheetLine(dialogState.data?.lineCode);
+  const deleteLine = useDeleteChecksheetLine();
+
+  const columns = useMemo(
+    () => [
+      { accessorKey: "lineCode", header: "Code" },
+      { accessorKey: "lineName", header: "Name" },
+      { accessorKey: "location", header: "Location" },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (row.original.isActive ? "Active" : "Inactive")
+      },
+      {
+        id: "action",
+        header: () => <Box sx={{ textAlign: "right", pr: 1.5 }}>Action</Box>,
+        cell: ({ row }) => (
+          <Box sx={{ textAlign: "right", display: "flex", justifyContent: "flex-end", gap: 1, pr: 1.5 }}>
+            <IconButton onClick={() => setDialogState({ open: true, mode: "edit", data: row.original })}><EditOutlinedIcon /></IconButton>
+            <IconButton color="error" onClick={() => setDeleteTarget({ id: row.original.lineCode, name: row.original.lineCode })}><DeleteOutlineIcon /></IconButton>
+          </Box>
+        )
+      }
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: lines,
+    columns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  if (isError) {
+    return <Box sx={{ p: 3 }}><Alert severity="error">{error.message}</Alert></Box>;
+  }
+
+  return (
+    <PageShell
+      title="Line Master"
+      description="Set up line code, line name, and location master selection."
+      action={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState({ open: true, mode: "create", data: null })}>Add Line</Button>}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header, index) => {
+                  const isFirstColumn = index === 0;
+                  const isLastColumn = index === headerGroup.headers.length - 1;
+
+                  return (
+                    <TableCell
+                      key={header.id}
+                      align={isLastColumn ? "right" : "left"}
+                      sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>Loading lines...</TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} hover>
+                  {row.getVisibleCells().map((cell, index) => {
+                    const isFirstColumn = index === 0;
+                    const isLastColumn = index === row.getVisibleCells().length - 1;
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        align={isLastColumn ? "right" : "left"}
+                        sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>No lines found.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <LineDialog
+        open={dialogState.open}
+        mode={dialogState.mode}
+        initialData={dialogState.data}
+        areas={areas.filter((item) => item.isActive)}
+        onClose={() => setDialogState({ open: false, mode: "create", data: null })}
+        isPending={createLine.isPending || updateLine.isPending}
+        onSubmit={(payload) => {
+          const action = dialogState.mode === "edit"
+            ? updateLine.mutateAsync({ lineName: payload.lineName, areaCode: payload.areaCode, isActive: payload.isActive })
+            : createLine.mutateAsync(payload);
+          action.then(() => setDialogState({ open: false, mode: "create", data: null }));
+        }}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        title="Delete Line"
+        text={`Delete "${deleteTarget?.name}"?`}
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={deleteLine.isPending}
+        onConfirmDialogClose={() => setDeleteTarget(null)}
+        onYesClick={() => deleteLine.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })}
+      />
+    </PageShell>
+  );
+}
+
+export function ChecksheetGroupsPage() {
+  const [dialogState, setDialogState] = useState({ open: false, mode: "create", data: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { data: groups = [], isLoading, isError, error } = useChecksheetGroups();
+  const createGroup = useCreateChecksheetGroup();
+  const updateGroup = useUpdateChecksheetGroup(dialogState.data?.groupCode);
+  const deleteGroup = useDeleteChecksheetGroup();
+
+  const columns = useMemo(
+    () => [
+      { accessorKey: "groupCode", header: "Code" },
+      { accessorKey: "groupName", header: "Name" },
+      { accessorKey: "sortOrder", header: "Sort" },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (row.original.isActive ? "Active" : "Inactive")
+      },
+      {
+        id: "action",
+        header: () => <Box sx={{ textAlign: "right", pr: 1.5 }}>Action</Box>,
+        cell: ({ row }) => (
+          <Box sx={{ textAlign: "right", display: "flex", justifyContent: "flex-end", gap: 1, pr: 1.5 }}>
+            <IconButton onClick={() => setDialogState({ open: true, mode: "edit", data: row.original })}><EditOutlinedIcon /></IconButton>
+            <IconButton color="error" onClick={() => setDeleteTarget({ id: row.original.groupCode, name: row.original.groupCode })}><DeleteOutlineIcon /></IconButton>
+          </Box>
+        )
+      }
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: groups,
+    columns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  if (isError) {
+    return <Box sx={{ p: 3 }}><Alert severity="error">{error.message}</Alert></Box>;
+  }
+
+  return (
+    <PageShell
+      title="Group Master"
+      description="Manage group options used inside each checksheet master mapping."
+      action={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState({ open: true, mode: "create", data: null })}>Add Group</Button>}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header, index) => {
+                  const isFirstColumn = index === 0;
+                  const isLastColumn = index === headerGroup.headers.length - 1;
+
+                  return (
+                    <TableCell
+                      key={header.id}
+                      align={isLastColumn ? "right" : "left"}
+                      sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>Loading groups...</TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} hover>
+                  {row.getVisibleCells().map((cell, index) => {
+                    const isFirstColumn = index === 0;
+                    const isLastColumn = index === row.getVisibleCells().length - 1;
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        align={isLastColumn ? "right" : "left"}
+                        sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>No groups found.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <GroupDialog
+        open={dialogState.open}
+        mode={dialogState.mode}
+        initialData={dialogState.data}
+        onClose={() => setDialogState({ open: false, mode: "create", data: null })}
+        isPending={createGroup.isPending || updateGroup.isPending}
+        onSubmit={(payload) => {
+          const action = dialogState.mode === "edit"
+            ? updateGroup.mutateAsync({ groupName: payload.groupName, sortOrder: payload.sortOrder, isActive: payload.isActive })
+            : createGroup.mutateAsync(payload);
+          action.then(() => setDialogState({ open: false, mode: "create", data: null }));
+        }}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        title="Delete Group"
+        text={`Delete "${deleteTarget?.name}"?`}
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={deleteGroup.isPending}
+        onConfirmDialogClose={() => setDeleteTarget(null)}
+        onYesClick={() => deleteGroup.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })}
+      />
+    </PageShell>
+  );
+}
+
+export function ChecksheetMastersPage() {
+  const [dialogState, setDialogState] = useState({ open: false, mode: "create", data: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { data: checksheetMasters = [], isLoading, isError, error } = useChecksheetMasters();
+  const createChecksheetMaster = useCreateChecksheetMaster();
+  const updateChecksheetMaster = useUpdateChecksheetMaster(dialogState.data?.id);
+  const deleteChecksheetMaster = useDeleteChecksheetMaster();
+
+  const columns = useMemo(
+    () => [
+      { accessorKey: "processCode", header: "Process Code" },
+      { accessorKey: "processName", header: "Process" },
+      { accessorKey: "checksheetName", header: "Checksheet" },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (row.original.isActive ? "Active" : "Inactive")
+      },
+      {
+        id: "action",
+        header: () => <Box sx={{ textAlign: "right", pr: 1.5 }}>Action</Box>,
+        cell: ({ row }) => (
+          <Box sx={{ textAlign: "right", display: "flex", justifyContent: "flex-end", gap: 1, pr: 1.5 }}>
+            <IconButton onClick={() => setDialogState({ open: true, mode: "edit", data: row.original })}><EditOutlinedIcon /></IconButton>
+            <IconButton color="error" onClick={() => setDeleteTarget({ id: row.original.id, name: row.original.checksheetName })}><DeleteOutlineIcon /></IconButton>
+          </Box>
+        )
+      }
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: checksheetMasters,
+    columns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  if (isError) {
+    return <Box sx={{ p: 3 }}><Alert severity="error">{error.message}</Alert></Box>;
+  }
+
+  return (
+    <PageShell
+      title="Checksheet Master"
+      description="Manage checksheet master. Line and group mapping are defined at checksheet line level."
+      action={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState({ open: true, mode: "create", data: null })}>Add Checksheet Master</Button>}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header, index) => {
+                  const isFirstColumn = index === 0;
+                  const isLastColumn = index === headerGroup.headers.length - 1;
+
+                  return (
+                    <TableCell
+                      key={header.id}
+                      align={isLastColumn ? "right" : "left"}
+                      sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>Loading checksheet masters...</TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} hover>
+                  {row.getVisibleCells().map((cell, index) => {
+                    const isFirstColumn = index === 0;
+                    const isLastColumn = index === row.getVisibleCells().length - 1;
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        align={isLastColumn ? "right" : "left"}
+                        sx={{ pl: isFirstColumn ? 3 : 2, pr: isLastColumn ? 3 : 2 }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, px: 3 }}>No checksheet masters found.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <ChecksheetMasterDialog
+        open={dialogState.open}
+        mode={dialogState.mode}
+        initialData={dialogState.data}
+        onClose={() => setDialogState({ open: false, mode: "create", data: null })}
+        isPending={createChecksheetMaster.isPending || updateChecksheetMaster.isPending}
+        onSubmit={(payload) => {
+          const action = dialogState.mode === "edit" ? updateChecksheetMaster.mutateAsync(payload) : createChecksheetMaster.mutateAsync(payload);
+          action.then(() => setDialogState({ open: false, mode: "create", data: null }));
+        }}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        title="Delete Checksheet Master"
+        text={`Delete "${deleteTarget?.name}"?`}
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={deleteChecksheetMaster.isPending}
+        onConfirmDialogClose={() => setDeleteTarget(null)}
+        onYesClick={() => deleteChecksheetMaster.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })}
+      />
+    </PageShell>
+  );
+}
+
+export function ChecksheetLinesPage() {
+  const [dialogState, setDialogState] = useState({ open: false, mode: "create", data: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [filters, setFilters] = useState({
+    checksheetMasterId: "",
+    lineCode: "",
+    location: ""
+  });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const { data: checksheetMasters = [] } = useChecksheetMasters();
+  const { data: lines = [] } = useChecksheetLines();
+  const { data: areas = [] } = useChecksheetAreas();
+  const { data: groups = [] } = useChecksheetGroups();
+  const { data: machinesPage, isLoading, isError, error } = useChecksheetMachines({
+    page: page + 1,
+    pageSize: rowsPerPage,
+    checksheetMasterId: filters.checksheetMasterId || undefined,
+    lineCode: filters.lineCode || undefined,
+    location: filters.location || undefined
+  });
+  const { data: templatesPage } = useChecksheetTemplates({ page: 1, pageSize: 200, isActive: true });
+  const templates = useMemo(() => templatesPage?.items ?? [], [templatesPage?.items]);
+  const machines = useMemo(() => machinesPage?.items ?? [], [machinesPage?.items]);
+  const totalCount = machinesPage?.totalCount ?? 0;
+  const createMachine = useCreateChecksheetMachine();
+  const updateMachine = useUpdateChecksheetMachine(dialogState.data?.machineCode);
+  const upsertModeTemplate = useUpsertChecksheetMachineModeTemplate();
+  const deleteMachine = useDeleteChecksheetMachine();
+
+  useEffect(() => {
+    setPage(0);
+  }, [filters.checksheetMasterId, filters.lineCode, filters.location]);
+
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: "machineCode",
+        header: "Machine"
+      },
+      {
+        id: "checksheet",
+        header: "Checksheet",
+        cell: ({ row }) => `${row.original.processCode} - ${row.original.processName} - ${row.original.checksheetName}`
+      },
+      {
+        id: "line",
+        header: "Line",
+        cell: ({ row }) => `${row.original.lineName} (${row.original.location})`
+      },
+      {
+        id: "modes",
+        header: "Modes",
+        cell: ({ row }) => row.original.modes?.join(", ") || "-"
+      },
+      {
+        id: "templates",
+        header: "Templates",
+        cell: ({ row }) => (row.original.modeTemplates ?? []).map((item) => `${item.checksheetMode}: ${item.templateName || "-"}`).join(" | ") || "-"
+      },
+      {
+        id: "groups",
+        header: "Groups",
+        cell: ({ row }) => row.original.groupCodes?.join(", ") || "-"
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (row.original.isActive ? "Active" : "Inactive")
+      },
+      {
+        id: "action",
+        header: () => <Box sx={{ textAlign: "right", pr: 1.5 }}>Action</Box>,
+        cell: ({ row }) => (
+          <Box sx={{ textAlign: "right", display: "flex", justifyContent: "flex-end", gap: 1, pr: 1.5 }}>
+            <IconButton onClick={() => setDialogState({ open: true, mode: "edit", data: row.original })}>
+              <EditOutlinedIcon />
+            </IconButton>
+            <IconButton color="error" onClick={() => setDeleteTarget({ id: row.original.machineCode, name: row.original.machineCode })}>
+              <DeleteOutlineIcon />
+            </IconButton>
+          </Box>
+        )
+      }
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: machines,
+    columns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  if (isError) {
+    return <Box sx={{ p: 3 }}><Alert severity="error">{error.message}</Alert></Box>;
+  }
+
+  return (
+    <PageShell
+      title="Checksheet Line"
+      description="Map machine to checksheet master, line master, and group, then assign mode and template."
+      action={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogState({ open: true, mode: "create", data: null })}>Add Checksheet Line</Button>}
+    >
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
+        <TextField
+          select
+          fullWidth
+          label="Checksheet Master"
+          value={filters.checksheetMasterId}
+          onChange={(event) => setFilters((current) => ({ ...current, checksheetMasterId: event.target.value }))}
+        >
+          <MenuItem value="">All</MenuItem>
+          {checksheetMasters.map((item) => (
+            <MenuItem key={item.id} value={item.id}>
+              {item.processCode} - {item.processName} - {item.checksheetName}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          label="Line"
+          value={filters.lineCode}
+          onChange={(event) => setFilters((current) => ({ ...current, lineCode: event.target.value }))}
+        >
+          <MenuItem value="">All</MenuItem>
+          {lines.map((line) => (
+            <MenuItem key={line.lineCode} value={line.lineCode}>
+              {line.lineCode} - {line.lineName}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          label="Location"
+          value={filters.location}
+          onChange={(event) => setFilters((current) => ({ ...current, location: event.target.value }))}
+        >
+          <MenuItem value="">All</MenuItem>
+          {areas.map((area) => (
+            <MenuItem key={area.areaCode} value={area.areaCode}>
+              {area.areaCode} - {area.areaName}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Stack>
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header, index) => {
+                  const isFirstColumn = index === 0;
+                  const isLastColumn = index === headerGroup.headers.length - 1;
+
+                  return (
+                    <TableCell
+                      key={header.id}
+                      align={isLastColumn ? "right" : "left"}
+                      sx={{
+                        pl: isFirstColumn ? 3 : 2,
+                        pr: isLastColumn ? 3 : 2
+                      }}
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6 }}>
+                  Loading checksheet lines...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} hover>
+                  {row.getVisibleCells().map((cell, index) => {
+                    const isFirstColumn = index === 0;
+                    const isLastColumn = index === row.getVisibleCells().length - 1;
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        align={isLastColumn ? "right" : "left"}
+                        sx={{
+                          pl: isFirstColumn ? 3 : 2,
+                          pr: isLastColumn ? 3 : 2
+                        }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 6 }}>
+                  No checksheet lines found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        <TablePagination
+          component="div"
+          count={totalCount}
+          page={page}
+          onPageChange={(_, nextPage) => setPage(nextPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(Number(event.target.value));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+        />
+      </TableContainer>
+
+      <ChecksheetLineDialog
+        open={dialogState.open}
+        mode={dialogState.mode}
+        initialData={dialogState.data}
+        checksheetMasters={checksheetMasters.filter((item) => item.isActive)}
+        lines={lines.filter((item) => item.isActive)}
+        groups={groups.filter((item) => item.isActive)}
+        templates={templates}
+        onClose={() => setDialogState({ open: false, mode: "create", data: null })}
+        isPending={createMachine.isPending || updateMachine.isPending || upsertModeTemplate.isPending}
+        onSubmit={async (payload) => {
+          const basePayload = {
+            machineCode: payload.machineCode,
+            checksheetMasterId: payload.checksheetMasterId,
+            lineCode: payload.lineCode,
+            groupCodes: payload.groupCodes,
+            modes: payload.modes,
+            isActive: payload.isActive
+          };
+
+          let resolvedMachineCode = dialogState.mode === "edit" ? dialogState.data.machineCode : "";
+          if (dialogState.mode === "edit") {
+            await updateMachine.mutateAsync(basePayload);
+          } else {
+            const createdResponse = await createMachine.mutateAsync(basePayload);
+            resolvedMachineCode = createdResponse?.data?.machineCode ?? "";
+          }
+
+          const machineCode = dialogState.mode === "edit" ? dialogState.data.machineCode : resolvedMachineCode;
+          if (payload.modes.includes("daily") && payload.dailyTemplateId) {
+            await upsertModeTemplate.mutateAsync({ machineCode, checksheetMode: "daily", templateId: payload.dailyTemplateId });
+          }
+          if (payload.modes.includes("regular") && payload.regularTemplateId) {
+            await upsertModeTemplate.mutateAsync({ machineCode, checksheetMode: "regular", templateId: payload.regularTemplateId });
+          }
+
+          setDialogState({ open: false, mode: "create", data: null });
+        }}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        title="Delete Checksheet Line"
+        text={`Delete "${deleteTarget?.name}"?`}
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={deleteMachine.isPending}
+        onConfirmDialogClose={() => setDeleteTarget(null)}
+        onYesClick={() => deleteMachine.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })}
+      />
+    </PageShell>
+  );
+}

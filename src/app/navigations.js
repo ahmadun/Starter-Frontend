@@ -1,43 +1,17 @@
 const navigations = [
   {
-    name: "Dashboard",
-    icon: "dashboard",
+    name: "Checksheets",
+    icon: "fact_check",
     children: [
       {
-        name: "Trends",
-        iconText: "TR",
-        path: "/dashboard/default"
+        name: "Transactions",
+        iconText: "CT",
+        path: "/checksheets/submissions"
       },
       {
-        name: "Overview",
-        iconText: "OV",
-        path: "/dashboard/overview"
-      },
-      {
-        name: "Portfolio",
-        iconText: "PF",
-        path: "/dashboard/portfolio"
-      },
-      {
-        name: "Resources",
-        iconText: "RP",
-        path: "/dashboard/resource-planning"
-      }
-    ]
-  },
-  {
-    name: "Project Management",
-    icon: "account_tree",
-    children: [
-      {
-        name: "All Projects",
-        iconText: "AP",
-        path: "/projects"
-      },
-      {
-        name: "My Tasks",
-        iconText: "MT",
-        path: "/my-tasks"
+        name: "Repair History",
+        iconText: "RH",
+        path: "/checksheets/repairs"
       }
     ]
   },
@@ -54,6 +28,11 @@ const navigations = [
         name: "Approval Templates",
         iconText: "AT",
         path: "/approvals/templates"
+      },
+      {
+        name: "Pending Repairs",
+        iconText: "PR",
+        path: "/approvals/repairs"
       }
     ]
   },
@@ -67,9 +46,39 @@ const navigations = [
         path: "/users"
       },
       {
-        name: "Category",
-        iconText: "CT",
-        path: "/master/categories"
+        name: "Form Templates",
+        iconText: "FT",
+        path: "/master/checksheet-templates"
+      },
+      {
+        name: "Area Master",
+        iconText: "AM",
+        path: "/master/checksheet-areas"
+      },
+      {
+        name: "Line Master",
+        iconText: "LM",
+        path: "/master/checksheet-line-masters"
+      },
+      {
+        name: "Group Master",
+        iconText: "GM",
+        path: "/master/checksheet-groups"
+      },
+      {
+        name: "Checksheet Masters",
+        iconText: "CM",
+        path: "/master/checksheet-masters"
+      },
+      {
+        name: "Checksheet Lines",
+        iconText: "CL",
+        path: "/master/checksheet-lines"
+      },
+      {
+        name: "Repairman Checker",
+        iconText: "RC",
+        path: "/master/repairman-checkers"
       }
     ]
   }
